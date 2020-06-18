@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/xlsx.js"></script>
+    <title>Viz</title>
+
+    <style>
+    </style>
+  </head>
+  <body>
+
+  <body onload="onLoad()">
+    <!-- load the d3.js library -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+    <script>
+      function onLoad() {
+        var url =
+          "Standard Bank.xlsx";
+        var oReq = new XMLHttpRequest();
+        oReq.open("GET", url, true);
+        oReq.responseType = "arraybuffer";
+
+        oReq.onload = function(e) {
+          var arraybuffer = oReq.response;
+
+          /* convert data to binary string */
+          var data = new Uint8Array(arraybuffer);
+          var arr = new Array();
+          for (var i = 0; i != data.length; ++i)
+            arr[i] = String.fromCharCode(data[i]);
+          var bstr = arr.join("");
+
+          /* Call XLSX */
+          var workbook = XLSX.read(bstr, {
+            type: "binary"
+          });
+
+          /* DO SOMETHING WITH workbook HERE */
+          var first_sheet_name = workbook.SheetNames[2];
+          /* Get worksheet */
+          var worksheet = workbook.Sheets[first_sheet_name];
+          var arrNew = XLSX.utils.sheet_to_json(worksheet, {
+            raw: true
+          });
+          dataNew = [];
+          dataNew.push(Object.keys(arrNew[0]));
+          arrNew.forEach(function(d) {
+            dataNew.push(Object.values(d));
+          });
+            console.log('arrNew', arrNew)
+
+            var key = Object.keys(arrNew[0])
+
+            console.log('key', key.slice(1))
+
+
+
+            var results = ""
+            key.slice(1).forEach(function(v) {
+                var obj = '{"date": "' + v + '", "max": ' + arrNew[0][v] + ', "min": ' + arrNew[1][v] + '}'
+                results += obj + ', \n'
+            })
+
+            console.log(results)
+
+
+            // temp -> chart 3
+            // airspace saved -> chart 5
+        };
+
+        oReq.send();
+      }
+
+    </script>
+
+  </body>
+</html>

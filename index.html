@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <script
+      src="https://kit.fontawesome.com/ea2379d57d.js"
+      crossorigin="anonymous"
+    ></script>
+    <title>Earth Automation Dashboard</title>
+    <style>
+      body {
+        margin: 0;
+        font-size: 14px;
+        background-color: #e6e6e6;
+        font-family: Futura;
+      }
+
+      .row {
+        background-color: #e6e6e6;
+        width: 100%;
+        padding: 12px;
+        box-sizing: border-box;
+        position: relative;
+      }
+
+      .row-0 {
+        height: 160px;
+      }
+
+      .row-1 {
+        height: 340px;
+      }
+
+      .row-2,
+      .row-3,
+      .row-4,
+      .row-5 {
+        height: 240px;
+      }
+
+      .chart {
+        background-color: white;
+        width: 100%;
+        height: 100%;
+      }
+
+      .column {
+        display: inline-block;
+      }
+
+      .column-1 {
+        float: right;
+      }
+
+      .delete-later {
+        font-size: 30px;
+        font-weight: bold;
+      }
+
+      .control-container {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: #73b431;
+      }
+
+      .column-control-container {
+        position: relative;
+        top: -10px;
+        left: 10px;
+      }
+
+      .compress-expand-container {
+        display: inline-block;
+        padding: 5px;
+      }
+
+      .download-data-container {
+        display: inline-block;
+        padding: 5px;
+      }
+
+      .chart-title {
+        font-weight: bold;
+        font-size: 1.4em;
+        opacity: 0.3;
+      }
+
+      .line {
+        fill: none;
+        stroke: black;
+        stroke-width: 2px;
+      }
+
+      .bar {
+        cursor: pointer;
+      }
+
+      .waste-bar {
+        fill: #247dc5;
+      }
+
+      .carbon-bar {
+        fill: green;
+      }
+
+      .compost-bar {
+        fill: #3ec300;
+      }
+
+      .weight-line {
+        stroke: red;
+      }
+
+      .max-temp-line {
+        stroke: #e13700;
+      }
+
+      .min-temp-line {
+        stroke: #f1db4b;
+      }
+
+      .general-tooltip {
+        position: fixed;
+        max-width: 200px;
+        background-color: #fff;
+        display: none;
+        border: 1px solid;
+        opacity: 0.9;
+        padding: 10px;
+        font-family: Futura;
+      }
+
+      .date-slider-handle-label {
+        text-anchor: middle;
+      }
+
+      .dashboard-title {
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 3.2em;
+      }
+
+      .date-selection-btn {
+        fill: white;
+        stroke: white;
+        stroke-width: 2px;
+        cursor: pointer;
+      }
+
+      .date-selection-label {
+        pointer-events: none;
+      }
+
+      .dashboard-summary-value {
+        font-weight: bold;
+        font-size: 2.2em;
+        text-anchor: middle;
+      }
+
+      .dashboard-summary-unit {
+        font-weight: bold;
+        font-size: 1.2em;
+      }
+
+      .dashboard-summary-desc {
+        opacity: 0.4;
+        text-anchor: middle;
+      }
+
+      .max-temp {
+        fill: red;
+      }
+
+      .min-temp {
+        fill: orange;
+      }
+    </style>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+  </head>
+  <body>
+    <div class="charts">
+      <div class="row row-0">
+        <div class="chart chart-0"></div>
+      </div>
+      <div class="row row-1">
+        <div class="chart chart-1"></div>
+      </div>
+      <div class="row row-2">
+        <div class="chart chart-2"></div>
+      </div>
+      <div class="row row-3">
+        <div class="chart chart-3"></div>
+      </div>
+      <div class="row row-4">
+        <div class="chart chart-4"></div>
+      </div>
+      <div class="row row-5">
+        <div class="chart chart-5"></div>
+      </div>
+      <div class="row row-6">
+        <div class="chart chart-6"></div>
+      </div>
+    </div>
+    <div class="general-tooltip">
+      <div class="general-tooltip-content"></div>
+    </div>
+
+    <script>
+      // define variables
+      const numGraphs = 7;
+      var chartDims = {
+        "0": { width: "100vw", height: "160px" },
+        "1": { width: "100vw", height: "340px" },
+        "2": { width: "100vw", height: "240px" },
+        "3": { width: "100vw", height: "240px" },
+        "4": { width: "100vw", height: "240px" },
+        "5": { width: "100vw", height: "240px" },
+        "6": { width: "100vw", height: "12vh" },
+      };
+      const margin = {
+        top: 60,
+        bottom: 40,
+        left: 40,
+        right: 40,
+        top2: 60,
+        bottom2: 20,
+      };
+      let expandStatus = false;
+      const dateSliderDiv = ".chart-6";
+      var dateVar;
+      const padding = 15;
+      const dashboard_title = "Discovery";
+      const formatDateObject = d3.timeFormat("%Y-%m-%d");
+      // export as csv
+
+      d3.json("waste.json").then(function (waste) {
+        d3.json("carbon.json").then(function (carbon) {
+          d3.json("weight.json").then(function (weight) {
+            d3.json("compost.json").then(function (compost) {
+              d3.json("co2.json").then(function (co2) {
+                d3.json("airspace.json").then(function (airspace) {
+                  d3.json("temp.json").then(function (temp) {
+                    data = {
+                      waste: waste,
+                      carbon: carbon,
+                      weight: weight,
+                      compost: compost,
+                      co2: co2,
+                      carbon: carbon,
+                      airspace: airspace,
+                      temp: temp,
+                    };
+                    myCode(data);
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+
+      function formatDate(date) {
+        let dated = date.split("/");
+        return dated[0] + "-" + dated[1] + "-" + dated[2];
+      }
+
+      function myCode(data) {
+        console.log(data);
+
+        const minDate = d3.min(data.waste, function (d) {
+          return new Date(formatDate(d.date));
+        });
+
+        const maxDate = d3.max(data.waste, function (d) {
+          return new Date(formatDate(d.date));
+        });
+
+        var currentMinDate = minDate;
+        var currentMaxDate = maxDate;
+
+        render_graphs();
+
+        function remove_graphs() {
+          for (let i = 0; i < numGraphs; i++) {
+            d3.select(".chart-" + i)
+              .select("svg")
+              .remove();
+            d3.select(".chart-" + i)
+              .select(".control-container")
+              .remove();
+            d3.select(".chart-" + i)
+              .select(".column-control-container")
+              .remove();
+          }
+        }
+
+        function render_graphs() {
+          // process data:
+          console.log("currentMinDate", currentMinDate);
+          console.log("currentMaxDate", currentMaxDate);
+
+          days = d3.timeDay.range(
+            currentMinDate,
+            currentMaxDate.setDate(currentMaxDate.getDate() + 1)
+          );
+
+          let newWasteData = [];
+          let newCarbonData = [];
+          let newWeightData = [];
+          let carbonAndWaste = [];
+
+          let newCompostData = [];
+          let newCo2Data = [];
+          let newAirspaceData = [];
+          let newTempData = [];
+          days.forEach(function (v) {
+            var objWaste = { date: v, value: null };
+            var objCarbon = { date: v, value: null };
+            var objWeight = { date: v, value: null };
+            var objCompost = { date: v, value: null };
+            var objCo2 = { date: v, value: null };
+            var objAirspace = { date: v, value: null };
+            var objTemp = { date: v, maxValue: null, minValue: null };
+            data.waste.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              carbonAndWaste.push(w.value);
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objWaste.value = w.value;
+              }
+            });
+            data.carbon.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              carbonAndWaste.push(w.value);
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objCarbon.value = w.value;
+              }
+            });
+            data.weight.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objWeight.value = w.value;
+              }
+            });
+            data.compost.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objCompost.value = w.value;
+              }
+            });
+            data.co2.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objCo2.value = w.value;
+              }
+            });
+            data.airspace.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objAirspace.value = w.value;
+              }
+            });
+            data.temp.forEach(function (w) {
+              let date = new Date(formatDate(w.date));
+              if (date.getUTCDate() == v.getUTCDate()) {
+                objTemp.maxValue = w.max;
+                objTemp.minValue = w.min;
+              }
+            });
+            newWasteData.push(objWaste);
+            newCarbonData.push(objCarbon);
+            newWeightData.push(objWeight);
+            newCompostData.push(objCompost);
+            newCo2Data.push(objCo2);
+            newAirspaceData.push(objAirspace);
+            newTempData.push(objTemp);
+          });
+
+          var currentWasteTotal = d3.sum(newWasteData, function (d) {
+            return d.value;
+          });
+
+          var currenCo2Total = d3.sum(newCo2Data, function (d) {
+            return d.value;
+          });
+
+          var currentAirspaceTotal = d3.sum(newAirspaceData, function (d) {
+            return d.value;
+          });
+
+          var currentCompostTotal = d3.sum(newCompostData, function (d) {
+            return d.value;
+          });
+
+          console.log("newWasteData", newWasteData);
+          console.log("newCo2Data", newCo2Data);
+          console.log("newAirspaceData", newAirspaceData);
+          console.log("newTempData", newTempData);
+
+          var maxLeft = d3.max(carbonAndWaste);
+          var maxRight = d3.max(newWeightData, function (d) {
+            return d.value;
+          });
+
+          console.log("maxLeft", maxLeft);
+          console.log("maxRight", maxRight);
+
+          let marginTop = 0;
+          /*if (!expandStatus) {
+            d3.select(".column-0").style(
+              "width",
+              (window.innerWidth - padding * 3) / 2 + "px"
+            );
+            d3.select(".column-1").style(
+              "width",
+              (window.innerWidth - padding * 3) / 2 + "px"
+            );
+            chartDims["2"].width = (window.innerWidth - padding * 3) / 2;
+            chartDims["3"].width = (window.innerWidth - padding * 3) / 2;
+            chartDims["4"].width = (window.innerWidth - padding * 3) / 2;
+            chartDims["5"].width = (window.innerWidth - padding * 3) / 2;
+            chartDims["2"].height =
+              d3.select(".row-2").style("height").slice(0, -2) / 2 -
+              2 * padding;
+            chartDims["3"].height =
+              d3.select(".row-2").style("height").slice(0, -2) / 2 -
+              2 * padding;
+            chartDims["4"].height =
+              d3.select(".row-2").style("height").slice(0, -2) / 2 -
+              2 * padding;
+            chartDims["5"].height =
+              d3.select(".row-2").style("height").slice(0, -2) / 2 -
+              2 * padding;
+            //marginTop = 2 * padding;
+          } else {
+            chartDims["2"].width = window.innerWidth - padding * 2;
+            chartDims["3"].width = window.innerWidth - padding * 2;
+            chartDims["4"].width = window.innerWidth - padding * 2;
+            chartDims["5"].width = window.innerWidth - padding * 2;
+            chartDims["2"].height = window.innerHeight - 2 * padding;
+            chartDims["3"].height = window.innerHeight - 2 * padding;
+            chartDims["4"].height = window.innerHeight - 2 * padding;
+            chartDims["5"].height = window.innerHeight - 2 * padding;
+            marginTop = 0;
+          }*/
+
+          d3.select(".chart-2")
+            .style("width", chartDims["2"].width + "px")
+            .style("height", chartDims["2"].height + "px");
+
+          d3.select(".chart-3")
+            .style("width", chartDims["3"].width + "px")
+            .style("height", chartDims["3"].height + "px")
+            .style("margin-top", marginTop + "px");
+
+          d3.select(".chart-4")
+            .style("width", chartDims["4"].width + "px")
+            .style("height", chartDims["4"].height + "px");
+
+          d3.select(".chart-5")
+            .style("width", chartDims["5"].width + "px")
+            .style("height", chartDims["5"].height + "px")
+            .style("margin-top", marginTop + "px");
+
+          /*
+          Chart: 0
+
+          Summary Statistics
+
+          */
+          var chart_0 = d3
+            .select(".chart-0")
+            .append("svg")
+            .attr("width", d3.select(".chart-0").style("width"))
+            .attr("height", d3.select(".chart-0").style("height"));
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-title")
+            .on("click", function () {
+              // go to top?
+            })
+            .text(dashboard_title)
+            .attr("x", 10)
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          var date_selection_btn = chart_0
+            .append("rect")
+            .attr("class", "date-selection-btn")
+            .on("click", function () {
+              // open date selection
+            })
+            .on("mouseover", function () {
+              d3.select(this).style("fill", "#EBEBEB");
+              showGeneralTooltip("Change start and end dates");
+            })
+            .on("mouseout", function () {
+              d3.select(this).style("fill", "white");
+              hideGeneralTooltip();
+            })
+            .attr("x", 10)
+            .attr("y", +d3.select(".dashboard-title").attr("y") + 10)
+            .attr("width", 20)
+            .attr("height", 20);
+
+          var dashboard_summary_width = d3
+            .select(".chart-0")
+            .style("width")
+            .slice(0, -2);
+
+          console.log("dashboard_summary_width", dashboard_summary_width);
+
+          // summary
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-value dashboard-summary-waste")
+            .text(currentWasteTotal)
+            .attr("x", function () {
+              return dashboard_summary_width - 4 * 160;
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-desc")
+            .text("Total Waste Diverted")
+            .attr("x", function () {
+              return dashboard_summary_width - 4 * 160 + 10;
+            })
+            .attr(
+              "y",
+              d3.select(".chart-0").style("height").slice(0, -2) / 2 + 20
+            );
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-unit")
+            .text("kg")
+            .attr("x", function () {
+              return (
+                +document
+                  .getElementsByClassName("dashboard-summary-waste")[0]
+                  .getBoundingClientRect().width +
+                +document
+                  .getElementsByClassName("dashboard-summary-waste")[0]
+                  .getBoundingClientRect().x -
+                10
+              );
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-value dashboard-summary-co2")
+            .text(Math.round(currenCo2Total))
+            .attr("x", function () {
+              return dashboard_summary_width - 3 * 160;
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-desc")
+            .text("Total CO²e Saved")
+            .attr("x", function () {
+              return dashboard_summary_width - 3 * 160 + 10;
+            })
+            .attr(
+              "y",
+              d3.select(".chart-0").style("height").slice(0, -2) / 2 + 20
+            );
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-unit")
+            .text("kg")
+            .attr("x", function () {
+              return (
+                +document
+                  .getElementsByClassName("dashboard-summary-co2")[0]
+                  .getBoundingClientRect().width +
+                +document
+                  .getElementsByClassName("dashboard-summary-co2")[0]
+                  .getBoundingClientRect().x -
+                10
+              );
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-value dashboard-summary-airspace")
+            .text(Math.round(currentAirspaceTotal))
+            .attr("x", function () {
+              return dashboard_summary_width - 2 * 160;
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-desc")
+            .text("Total Airspace Saved")
+            .attr("x", function () {
+              return dashboard_summary_width - 2 * 160 + 10;
+            })
+            .attr(
+              "y",
+              d3.select(".chart-0").style("height").slice(0, -2) / 2 + 20
+            );
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-unit")
+            .text("m²")
+            .attr("x", function () {
+              return (
+                +document
+                  .getElementsByClassName("dashboard-summary-airspace")[0]
+                  .getBoundingClientRect().width +
+                +document
+                  .getElementsByClassName("dashboard-summary-airspace")[0]
+                  .getBoundingClientRect().x -
+                10
+              );
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-value dashboard-summary-compost")
+            .text(Math.round(currentCompostTotal))
+            .attr("x", function () {
+              return dashboard_summary_width - 1 * 160;
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-desc")
+            .text("Total Compost Output")
+            .attr("x", function () {
+              return dashboard_summary_width - 1 * 160 + 10;
+            })
+            .attr(
+              "y",
+              d3.select(".chart-0").style("height").slice(0, -2) / 2 + 20
+            );
+
+          chart_0
+            .append("text")
+            .attr("class", "dashboard-summary-unit")
+            .text("kg")
+            .attr("x", function () {
+              return (
+                +document
+                  .getElementsByClassName("dashboard-summary-compost")[0]
+                  .getBoundingClientRect().width +
+                +document
+                  .getElementsByClassName("dashboard-summary-compost")[0]
+                  .getBoundingClientRect().x -
+                10
+              );
+            })
+            .attr("y", d3.select(".chart-0").style("height").slice(0, -2) / 2);
+
+          chart_0
+            .append("text")
+            .attr("class", "date-selection-label")
+            .text(
+              formatDateObject(currentMinDate) +
+                " - " +
+                formatDateObject(currentMaxDate)
+            )
+            .attr("x", 14)
+            .attr("y", +d3.select(".dashboard-title").attr("y") + 25);
+
+          date_selection_btn.attr(
+            "width",
+            document
+              .getElementsByClassName("date-selection-label")[0]
+              .getBoundingClientRect().width + 8
+          );
+
+          var control_container_0 = d3
+            .select(".chart-0")
+            .append("div")
+            .attr("class", "control-container");
+
+          control_container_0
+            .append("div")
+            .attr("class", "download-data-container")
+            .append("i")
+            .attr("class", function () {
+              return "fas fa-file-download fa-lg";
+            })
+            .style("cursor", "pointer")
+            .on("click", function () {
+              console.log("data download");
+            })
+            .on("mouseover", function () {
+              showGeneralTooltip("Download data as CSV");
+            })
+            .on("mouseout", hideGeneralTooltip);
+
+          /*control_container_0
+            .append("div")
+            .attr("class", "compress-expand-container")
+            .append("i")
+            .attr("class", function () {
+              if (expandStatus) {
+                return "fas fa-compress-arrows-alt fa-lg";
+              } else {
+                return "fas fa-expand-arrows-alt fa-lg";
+              }
+            })
+            .style("cursor", "pointer")
+            .on("click", function () {
+              if (expandStatus) {
+                contract_chart();
+              } else {
+                expand_chart(0);
+              }
+            })
+            .on("mouseover", function () {
+              if (expandStatus) {
+                showGeneralTooltip("Contract Chart");
+              } else {
+                showGeneralTooltip("Expand Chart");
+              }
+            })
+            .on("mouseout", hideGeneralTooltip);*/
+
+          /*
+          Chart: 1
+
+          Summary Waste, Weight & Carbon Graph
+
+          */
+          var chart_1 = d3
+            .select(".chart-1")
+            .append("svg")
+            .attr("width", d3.select(".chart-1").style("width"))
+            .attr("height", d3.select(".chart-1").style("height"));
+
+          chart_1
+            .append("text")
+            .attr("class", "chart-title")
+            .text("Waste Diverted")
+            .attr("x", 10)
+            .attr("y", 30);
+
+          var xScale = d3
+            .scaleTime()
+            .domain([currentMinDate, currentMaxDate])
+            .range([
+              margin.left,
+              d3.select(".chart-1").style("width").slice(0, -2) - margin.right,
+            ]);
+
+          var yScaleLeft = d3
+            .scaleLinear()
+            .domain([0, maxLeft])
+            .range([
+              d3.select(".chart-1").style("height").slice(0, -2) -
+                margin.bottom,
+              margin.top,
+            ]);
+
+          var yScaleRight = d3
+            .scaleLinear()
+            .domain([0, maxRight])
+            .range([
+              d3.select(".chart-1").style("height").slice(0, -2) -
+                margin.bottom,
+              margin.top,
+            ]);
+
+          var line = d3
+            .line()
+            .x(function (d, i) {
+              return xScale(new Date(d.date));
+            })
+            .curve(d3.curveBasis)
+            .y(function (d) {
+              return yScaleLeft(d.value);
+            })
+            .defined(function (d) {
+              return d.value !== null;
+            });
+
+          var line2 = d3
+            .line()
+            .x(function (d, i) {
+              return xScale(new Date(d.date));
+            })
+            .curve(d3.curveBasis)
+            .y(function (d) {
+              return yScaleRight(d.value);
+            })
+            .defined(function (d) {
+              return d.value !== null;
+            });
+
+          chart_1
+            .append("g")
+            .attr("class", "y-axis")
+            .call(d3.axisLeft(yScaleLeft))
+            .attr("transform", "translate(" + margin.left + ",0)");
+
+          chart_1
+            .append("g")
+            .attr("class", "y-axis")
+            .call(d3.axisRight(yScaleRight))
+            .attr(
+              "transform",
+              "translate(" +
+                (d3.select(".chart-1").style("width").slice(0, -2) -
+                  margin.right) +
+                ",0)"
+            );
+
+          chart_1
+            .append("g")
+            .attr("class", "x-axis")
+            .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat("%b")))
+            .attr(
+              "transform",
+              "translate(0," +
+                (d3.select(".chart-1").style("height").slice(0, -2) -
+                  margin.bottom) +
+                ")"
+            );
+
+          console.log("newWasteData", newWasteData);
+
+          chart_1
+            .selectAll(".waste-bar")
+            .data(newWasteData)
+            .enter()
+            .append("rect")
+            .attr("class", "bar waste-bar")
+            .attr("x", function (d, i) {
+              return xScale(new Date(d.date));
+            })
+            .attr("y", function (d) {
+              return yScaleLeft(d.value);
+            })
+            .attr("width", function (d, i) {
+              var next = d3.utcDay.offset(d.date, 1);
+
+              return xScale(new Date(next)) - xScale(new Date(d.date));
+            })
+            .attr("height", function (d) {
+              return yScaleLeft(0) - yScaleLeft(d.value);
+            });
+
+          chart_1
+            .selectAll(".carbon-line")
+            .data(newCarbonData)
+            .enter()
+            .append("rect")
+            .attr("class", "bar carbon-bar")
+            .attr("x", function (d, i) {
+              return xScale(new Date(d.date));
+            })
+            .attr("y", function (d) {
+              return yScaleLeft(d.value);
+            })
+            .attr("width", function (d, i) {
+              var next = d3.utcDay.offset(d.date, 1);
+
+              return xScale(new Date(next)) - xScale(new Date(d.date));
+            })
+            .attr("height", function (d) {
+              return yScaleLeft(0) - yScaleLeft(d.value);
+            });
+
+          chart_1
+            .append("path")
+            .datum(newWeightData)
+            .attr("class", "line weight-line")
+            .attr("d", line2);
+
+          var control_container_1 = d3
+            .select(".chart-1")
+            .append("div")
+            .attr("class", "control-container");
+
+          /*control_container_1
+            .append("div")
+            .attr("class", "download-data-container")
+            .append("i")
+            .attr("class", function () {
+              return "fas fa-file-download fa-lg";
+            })
+            .style("cursor", "pointer")
+            .on("click", function () {
+              console.log("data download");
+              export_data(newWasteData);
+            })
+            .on("mouseover", function () {
+              showGeneralTooltip("Download data as CSV");
+            })
+            .on("mouseout", hideGeneralTooltip);*/
+
+          control_container_1
+            .append("div")
+            .attr("class", "compress-expand-container")
+            .append("i")
+            .attr("class", function () {
+              if (expandStatus) {
+                return "fas fa-compress-arrows-alt fa-lg";
+              } else {
+                return "fas fa-expand-arrows-alt fa-lg";
+              }
+            })
+            .style("cursor", "pointer")
+            .on("click", function () {
+              if (expandStatus) {
+                contract_chart();
+              } else {
+                expand_chart(1);
+              }
+            })
+            .on("mouseover", function () {
+              if (expandStatus) {
+                showGeneralTooltip("Contract Chart");
+              } else {
+                showGeneralTooltip("Expand Chart");
+              }
+            })
+            .on("mouseout", hideGeneralTooltip);
+
+          /*
+          Chart: 2
+
+          CO-2 Emmissions
+          (LHS Top)
+
+          */
+          var max_Chart_2 = d3.max(newCo2Data, function (d) {
+            return d.value;
+          });
+
+          var xScale_Chart_2 = d3
+            .scaleTime()
+            .domain([currentMinDate, currentMaxDate])
+            .range([
+              margin.left,
+              d3.select(".chart-2").style("width").slice(0, -2) - margin.right,
+            ]);
+
+          var yScale_Chart_2 = d3
+            .scaleLinear()
+            .domain([0, max_Chart_2])
+            .range([
+              d3.select(".chart-2").style("height").slice(0, -2) -
+                margin.bottom2,
+              margin.top2,
+            ]);
+
+          var area_Chart_2 = d3
+            .area()
+            .defined((d) => !isNaN(d.value))
+            .x((d) => xScale_Chart_2(d.date))
+            .y0(yScale_Chart_2(0))
+            .y1((d) => yScale_Chart_2(d.value));
+
+          setTimeout(function () {
+            var control_container_2 = d3
+              .select(".chart-2")
+              .append("div")
+              .attr("class", "column-control-container")
+              .append("div")
+              .attr("class", "control-container");
+
+            /*control_container_2
+              .append("div")
+              .attr("class", "download-data-container")
+              .append("i")
+              .attr("class", function () {
+                return "fas fa-file-download fa-lg";
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                console.log("data download");
+              })
+              .on("mouseover", function () {
+                showGeneralTooltip("Download data as CSV");
+              })
+              .on("mouseout", hideGeneralTooltip);*/
+
+            control_container_2
+              .append("div")
+              .attr("class", "compress-expand-container")
+              .append("i")
+              .attr("class", function () {
+                if (expandStatus) {
+                  return "fas fa-compress-arrows-alt fa-lg";
+                } else {
+                  return "fas fa-expand-arrows-alt fa-lg";
+                }
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                if (expandStatus) {
+                  contract_chart();
+                } else {
+                  expand_chart(2);
+                }
+              })
+              .on("mouseover", function () {
+                if (expandStatus) {
+                  showGeneralTooltip("Contract Chart");
+                } else {
+                  showGeneralTooltip("Expand Chart");
+                }
+              })
+              .on("mouseout", hideGeneralTooltip);
+
+            var chart_2 = d3
+              .select(".chart-2")
+              .append("svg")
+              .attr("width", d3.select(".chart-2").style("width"))
+              .attr("height", d3.select(".chart-2").style("height"));
+
+            chart_2
+              .append("text")
+              .attr("class", "chart-title")
+              .text("CO² Emissions")
+              .attr("x", 10)
+              .attr("y", 30);
+
+            chart_2
+              .append("g")
+              .attr("class", "y-axis")
+              .call(d3.axisLeft(yScale_Chart_2))
+              .attr("transform", "translate(" + margin.left + ",0)");
+
+            chart_2
+              .append("g")
+              .attr("class", "x-axis")
+              .call(
+                d3.axisBottom(xScale_Chart_2).tickFormat(d3.timeFormat("%b"))
+              )
+              .attr(
+                "transform",
+                "translate(0," +
+                  (d3.select(".chart-2").style("height").slice(0, -2) -
+                    margin.bottom2) +
+                  ")"
+              );
+
+            chart_2
+              .append("path")
+              .datum(newCo2Data)
+              .attr("fill", "steelblue")
+              .attr("d", area_Chart_2);
+          }, 100);
+          /*
+          Chart: 3
+
+          Temperature
+
+          */
+          var max_Chart_3 = d3.max(newTempData, function (d) {
+            return d.maxValue;
+          });
+
+          var xScale_Chart_3 = d3
+            .scaleTime()
+            .domain([currentMinDate, currentMaxDate])
+            .range([
+              margin.left,
+              d3.select(".chart-3").style("width").slice(0, -2) - margin.right,
+            ]);
+
+          var yScale_Chart_3 = d3
+            .scaleLinear()
+            .domain([0, max_Chart_3])
+            .range([
+              d3.select(".chart-3").style("height").slice(0, -2) -
+                margin.bottom2,
+              margin.top2,
+            ]);
+
+          /*var line_Chart_3_max = d3
+            .line()
+            .x(function (d, i) {
+              return xScale_Chart_3(new Date(d.date));
+            })
+            .curve(d3.curveBasis)
+            .y(function (d) {
+              return yScale_Chart_3(d.maxValue);
+            })
+            .defined(function (d) {
+              return d.value !== null;
+            });
+
+          var line_Chart_3_min = d3
+            .line()
+            .x(function (d, i) {
+              return xScale_Chart_3(new Date(d.date));
+            })
+            .curve(d3.curveBasis)
+            .y(function (d) {
+              return yScale_Chart_3(d.minValue);
+            })
+            .defined(function (d) {
+              return d.value !== null;
+            });*/
+
+          setTimeout(function () {
+            var control_container_3 = d3
+              .select(".chart-3")
+              .append("div")
+              .attr("class", "column-control-container")
+              .append("div")
+              .attr("class", "control-container");
+
+            /*control_container_3
+              .append("div")
+              .attr("class", "download-data-container")
+              .append("i")
+              .attr("class", function () {
+                return "fas fa-file-download fa-lg";
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                console.log("data download");
+              })
+              .on("mouseover", function () {
+                showGeneralTooltip("Download data as CSV");
+              })
+              .on("mouseout", hideGeneralTooltip);*/
+
+            control_container_3
+              .append("div")
+              .attr("class", "compress-expand-container")
+              .append("i")
+              .attr("class", function () {
+                if (expandStatus) {
+                  return "fas fa-compress-arrows-alt fa-lg";
+                } else {
+                  return "fas fa-expand-arrows-alt fa-lg";
+                }
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                if (expandStatus) {
+                  contract_chart();
+                } else {
+                  expand_chart(3);
+                }
+              })
+              .on("mouseover", function () {
+                if (expandStatus) {
+                  showGeneralTooltip("Contract Chart");
+                } else {
+                  showGeneralTooltip("Expand Chart");
+                }
+              })
+              .on("mouseout", hideGeneralTooltip);
+
+            var chart_3 = d3
+              .select(".chart-3")
+              .append("svg")
+              .attr("width", d3.select(".chart-3").style("width"))
+              .attr("height", d3.select(".chart-3").style("height"));
+
+            chart_3
+              .append("text")
+              .attr("class", "chart-title")
+              .text("Temperature")
+              .attr("x", 10)
+              .attr("y", 30);
+
+            chart_3
+              .append("g")
+              .attr("class", "y-axis")
+              .call(d3.axisLeft(yScale_Chart_3))
+              .attr("transform", "translate(" + margin.left + ",0)");
+
+            chart_3
+              .append("g")
+              .attr("class", "x-axis")
+              .call(
+                d3.axisBottom(xScale_Chart_3).tickFormat(d3.timeFormat("%b"))
+              )
+              .attr(
+                "transform",
+                "translate(0," +
+                  (d3.select(".chart-3").style("height").slice(0, -2) -
+                    margin.bottom2) +
+                  ")"
+              );
+
+            chart_3
+              .selectAll(".max-temp")
+              .data(newTempData)
+              .enter()
+              .append("circle")
+              .attr("class", "max-temp")
+              .attr("r", 4)
+              .attr("cx", function (d) {
+                return xScale_Chart_3(d.date);
+              })
+              .attr("cy", function (d) {
+                return yScale_Chart_3(d.maxValue);
+              });
+
+            chart_3
+              .selectAll(".min-temp")
+              .data(newTempData)
+              .enter()
+              .append("circle")
+              .attr("class", "min-temp")
+              .attr("r", 4)
+              .attr("cx", function (d) {
+                return xScale_Chart_3(d.date);
+              })
+              .attr("cy", function (d) {
+                return yScale_Chart_3(d.minValue);
+              });
+
+            /*chart_3
+              .append("path")
+              .datum(newTempData)
+              .attr("class", "line max-temp-line")
+              .attr("d", line_Chart_3_max);
+
+            chart_3
+              .append("path")
+              .datum(newTempData)
+              .attr("class", "line min-temp-line")
+              .attr("d", line_Chart_3_min);*/
+          }, 100);
+
+          /*
+          Chart: 4
+
+          Compost Output
+          (RHS Top)
+
+          */
+
+          var max_Chart_4 = d3.max(newCompostData, function (d) {
+            return d.value;
+          });
+
+          var xScale_Chart_4 = d3
+            .scaleTime()
+            .domain([currentMinDate, currentMaxDate])
+            .range([
+              margin.left,
+              d3.select(".chart-4").style("width").slice(0, -2) - margin.right,
+            ]);
+
+          var yScale_Chart_4 = d3
+            .scaleLinear()
+            .domain([0, max_Chart_4])
+            .range([
+              d3.select(".chart-4").style("height").slice(0, -2) -
+                margin.bottom2,
+              margin.top2,
+            ]);
+
+          setTimeout(function () {
+            var control_container_4 = d3
+              .select(".chart-4")
+              .append("div")
+              .attr("class", "column-control-container")
+              .append("div")
+              .attr("class", "control-container");
+
+            /*control_container_4
+              .append("div")
+              .attr("class", "download-data-container")
+              .append("i")
+              .attr("class", function () {
+                return "fas fa-file-download fa-lg";
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                console.log("data download");
+              })
+              .on("mouseover", function () {
+                showGeneralTooltip("Download data as CSV");
+              })
+              .on("mouseout", hideGeneralTooltip);*/
+
+            control_container_4
+              .append("div")
+              .attr("class", "compress-expand-container")
+              .append("i")
+              .attr("class", function () {
+                if (expandStatus) {
+                  return "fas fa-compress-arrows-alt fa-lg";
+                } else {
+                  return "fas fa-expand-arrows-alt fa-lg";
+                }
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                if (expandStatus) {
+                  contract_chart();
+                } else {
+                  expand_chart(4);
+                }
+              })
+              .on("mouseover", function () {
+                if (expandStatus) {
+                  showGeneralTooltip("Contract Chart");
+                } else {
+                  showGeneralTooltip("Expand Chart");
+                }
+              })
+              .on("mouseout", hideGeneralTooltip);
+
+            var chart_4 = d3
+              .select(".chart-4")
+              .append("svg")
+              .attr("width", d3.select(".chart-4").style("width"))
+              .attr("height", d3.select(".chart-4").style("height"));
+
+            chart_4
+              .append("text")
+              .attr("class", "chart-title")
+              .text("Compost Output")
+              .attr("x", 10)
+              .attr("y", 30);
+
+            chart_4
+              .append("g")
+              .attr("class", "y-axis")
+              .call(d3.axisLeft(yScale_Chart_4))
+              .attr("transform", "translate(" + margin.left + ",0)");
+
+            chart_4
+              .append("g")
+              .attr("class", "x-axis")
+              .call(
+                d3.axisBottom(xScale_Chart_4).tickFormat(d3.timeFormat("%b"))
+              )
+              .attr(
+                "transform",
+                "translate(0," +
+                  (d3.select(".chart-4").style("height").slice(0, -2) -
+                    margin.bottom2) +
+                  ")"
+              );
+
+            chart_4
+              .selectAll(".compost-bar")
+              .data(newCompostData)
+              .enter()
+              .append("rect")
+              .attr("class", "bar compost-bar")
+              .attr("x", function (d, i) {
+                return xScale_Chart_4(new Date(d.date));
+              })
+              .attr("y", function (d) {
+                return yScale_Chart_4(d.value);
+              })
+              .attr("width", function (d, i) {
+                var next = d3.utcDay.offset(d.date, 1);
+
+                return (
+                  xScale_Chart_4(new Date(next)) -
+                  xScale_Chart_4(new Date(d.date))
+                );
+              })
+              .attr("height", function (d) {
+                return yScale_Chart_4(0) - yScale_Chart_4(d.value);
+              });
+          }, 100);
+
+          /*
+          Chart: 5
+
+          Total Airspace Saved
+          (RHS Bottom)
+
+          */
+          var max_Chart_5 = d3.max(newAirspaceData, function (d) {
+            return d.value;
+          });
+
+          var xScale_Chart_5 = d3
+            .scaleTime()
+            .domain([currentMinDate, currentMaxDate])
+            .range([
+              margin.left,
+              d3.select(".chart-5").style("width").slice(0, -2) - margin.right,
+            ]);
+
+          var yScale_Chart_5 = d3
+            .scaleLinear()
+            .domain([0, max_Chart_5])
+            .range([
+              d3.select(".chart-5").style("height").slice(0, -2) -
+                margin.bottom2,
+              margin.top2,
+            ]);
+
+          var area_Chart_5 = d3
+            .area()
+            .defined((d) => !isNaN(d.value))
+            .x((d) => xScale_Chart_5(d.date))
+            .y0(yScale_Chart_5(0))
+            .y1((d) => yScale_Chart_5(d.value));
+
+          setTimeout(function () {
+            var control_container_5 = d3
+              .select(".chart-5")
+              .append("div")
+              .attr("class", "column-control-container")
+              .append("div")
+              .attr("class", "control-container");
+
+            /*control_container_5
+              .append("div")
+              .attr("class", "download-data-container")
+              .append("i")
+              .attr("class", function () {
+                return "fas fa-file-download fa-lg";
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                console.log("data download");
+              })
+              .on("mouseover", function () {
+                showGeneralTooltip("Download data as CSV");
+              })
+              .on("mouseout", hideGeneralTooltip);*/
+
+            control_container_5
+              .append("div")
+              .attr("class", "compress-expand-container")
+              .append("i")
+              .attr("class", function () {
+                if (expandStatus) {
+                  return "fas fa-compress-arrows-alt fa-lg";
+                } else {
+                  return "fas fa-expand-arrows-alt fa-lg";
+                }
+              })
+              .style("cursor", "pointer")
+              .on("click", function () {
+                if (expandStatus) {
+                  contract_chart();
+                } else {
+                  expand_chart(5);
+                }
+              })
+              .on("mouseover", function () {
+                if (expandStatus) {
+                  showGeneralTooltip("Contract Chart");
+                } else {
+                  showGeneralTooltip("Expand Chart");
+                }
+              })
+              .on("mouseout", hideGeneralTooltip);
+
+            var chart_5 = d3
+              .select(".chart-5")
+              .append("svg")
+              .attr("width", d3.select(".chart-5").style("width"))
+              .attr("height", d3.select(".chart-5").style("height"));
+
+            chart_5
+              .append("text")
+              .attr("class", "chart-title")
+              .text("Airspace Saved")
+              .attr("x", 10)
+              .attr("y", 30);
+
+            chart_5
+              .append("g")
+              .attr("class", "y-axis")
+              .call(d3.axisLeft(yScale_Chart_5))
+              .attr("transform", "translate(" + margin.left + ",0)");
+
+            chart_5
+              .append("g")
+              .attr("class", "x-axis")
+              .call(
+                d3.axisBottom(xScale_Chart_5).tickFormat(d3.timeFormat("%b"))
+              )
+              .attr(
+                "transform",
+                "translate(0," +
+                  (d3.select(".chart-5").style("height").slice(0, -2) -
+                    margin.bottom2) +
+                  ")"
+              );
+
+            chart_5
+              .append("path")
+              .datum(newAirspaceData)
+              .attr("fill", "none")
+              .style("stroke", "grey")
+              .attr("d", area_Chart_5);
+          }, 100);
+
+          /*
+          Chart: Date Selection
+
+          Slider to select date shown
+
+          */
+
+          const dateSliderMin = margin.left;
+          const dateSliderMax =
+            d3.select(dateSliderDiv).style("width").slice(0, -2) - margin.right;
+
+          var dateXScale = d3
+            .scaleTime()
+            .domain([minDate, maxDate])
+            .range([dateSliderMin, dateSliderMax])
+            .clamp(true);
+
+          var chart_date = d3
+            .select(dateSliderDiv)
+            .append("svg")
+            .attr("width", d3.select(dateSliderDiv).style("width"))
+            .attr("height", d3.select(dateSliderDiv).style("height"));
+
+          chart_date
+            .append("g")
+            .attr("class", "x-axis")
+            .call(d3.axisBottom(dateXScale).tickFormat(d3.timeFormat("%b")))
+            .attr(
+              "transform",
+              "translate(0," +
+                (d3.select(dateSliderDiv).style("height").slice(0, -2) - 24) +
+                ")"
+            );
+
+          chart_date.select(".domain").style("display", "none");
+
+          function dragMoveDate(d, handleID) {
+            clearTimeout(dateVar);
+            // Get the updated X location computed by the drag behavior.
+            var x = d3.event.x;
+
+            // Constrain x to be between x1 and x2 (the ends of the line).
+            x =
+              x < dateSliderMin
+                ? dateSliderMin
+                : x > dateSliderMax
+                ? dateSliderMax
+                : x;
+
+            var dateRounded = roundDate(dateXScale.invert(x));
+
+            // This assignment is necessary for multiple drag gestures.
+            // It makes the drag.origin function yield the correct value.
+
+            // Update the handle location.
+            if (handleID === 0) {
+              dateSliderHandle0.attr("x", dateXScale(dateRounded));
+              dateSliderHandleLabel0
+                .attr("x", dateXScale(dateRounded) + 7)
+                .text(dateLabel(dateRounded));
+              currentMinDate = dateRounded;
+            } else {
+              dateSliderHandle1.attr("x", dateXScale(dateRounded));
+              dateSliderHandleLabel1
+                .attr("x", dateXScale(dateRounded) + 7)
+                .text(dateLabel(dateRounded));
+              currentMaxDate = dateRounded;
+            }
+            //timeout
+            //graphs need to start at current
+            dateVar = setTimeout(function () {
+              remove_graphs();
+              render_graphs();
+            }, 2000);
+          }
+
+          var dragDate0 = d3.drag().on("drag", function (d) {
+            dragMoveDate(d, 0);
+          });
+
+          var dragDate1 = d3.drag().on("drag", function (d) {
+            dragMoveDate(d, 1);
+          });
+
+          dateLabel = d3.timeFormat("%e %b");
+
+          var dateSliderLine = chart_date
+            .append("line")
+            .attr("class", "date-slider")
+            .attr("x1", dateSliderMin)
+            .attr("x2", dateSliderMax)
+            .attr("y1", 40)
+            .attr("y2", 40)
+            .style("stroke", "#CCCCCC")
+            .style("stroke-width", 12)
+            .style("cursor", "pointer");
+
+          var dateSliderHandleLabel0 = chart_date
+            .append("text")
+            .attr("class", "date-slider-handle-label")
+            .attr("id", "date-slider-handle-label-0")
+            .attr("y", 22)
+            .attr("x", dateXScale(currentMinDate) + 7)
+            .text(dateLabel(currentMinDate));
+
+          var dateSliderHandle0 = chart_date
+            .append("rect")
+            .attr("class", "date-slider-handle")
+            .attr("id", "date-slider-handle-0")
+            .attr("width", 14)
+            .attr("height", 24)
+            .attr("y", 28)
+            .attr("x", dateXScale(currentMinDate))
+            .style("cursor", "pointer")
+            .style("stroke", "black")
+            .attr("fill", "#DDD5C6")
+            .call(dragDate0);
+
+          var dateSliderHandleLabel1 = chart_date
+            .append("text")
+            .attr("class", "date-slider-handle-label")
+            .attr("id", "date-slider-handle-label-1")
+            .attr("y", 22)
+            .attr("x", dateXScale(currentMaxDate) + 7)
+            .text(dateLabel(currentMaxDate));
+
+          var dateSliderHandle1 = chart_date
+            .append("rect")
+            .attr("class", "date-slider-handle")
+            .attr("id", "date-slider-handle-1")
+            .attr("width", 14)
+            .attr("height", 24)
+            .attr("y", 28)
+            .attr("x", dateXScale(currentMaxDate))
+            .style("cursor", "pointer")
+            .style("stroke", "black")
+            .attr("fill", "#DDD5C6")
+            .call(dragDate1);
+        }
+
+        function expand_chart(chart_id) {
+          hideGeneralTooltip();
+          expandStatus = true;
+          for (let i = 0; i < numGraphs; i++) {
+            if (i !== chart_id) {
+              d3.select(".chart-" + i).node().parentNode.style.display = "none";
+            }
+          }
+          d3.select(".chart-" + chart_id).node().parentNode.style.width =
+            "100vw";
+          d3.select(".chart-" + chart_id).node().parentNode.style.height =
+            "100vh";
+          d3.select(".chart-" + chart_id)
+            .select(".expand-container")
+            .style("display", "none");
+          d3.select(".chart-" + chart_id)
+            .select(".compress-container")
+            .style("display", "block");
+          remove_graphs();
+          render_graphs();
+        }
+
+        function expand_chart_old(chart_id) {
+          hideGeneralTooltip();
+          expandStatus = true;
+          if (chart_id <= 1 || chart_id >= 6) {
+            for (let i = 0; i < numGraphs; i++) {
+              if (i !== chart_id) {
+                if (i <= 1 || i >= 6) {
+                  d3.select(".chart-" + i).node().parentNode.style.display =
+                    "none";
+                } else {
+                  d3
+                    .select(".chart-" + i)
+                    .node().parentNode.parentNode.style.display = "none";
+                }
+              }
+            }
+            d3.select(".chart-" + chart_id).node().parentNode.style.width =
+              "100vw";
+            d3.select(".chart-" + chart_id).node().parentNode.style.height =
+              "100vh";
+          } else {
+            for (let i = 0; i < numGraphs; i++) {
+              if (i <= 1 || i >= 6) {
+                d3.select(".chart-" + i).node().parentNode.style.display =
+                  "none";
+              } else {
+                if (i > 3 && (chart_id == 2 || chart_id == 3)) {
+                  d3.select(".chart-" + i).node().parentNode.style.display =
+                    "none";
+                }
+                if (i <= 3 && (chart_id == 4 || chart_id == 5)) {
+                  d3.select(".chart-" + i).node().parentNode.style.display =
+                    "none";
+                }
+                if (i != chart_id) {
+                  d3.select(".chart-" + i).node().style.display = "none";
+                }
+              }
+            }
+            d3
+              .select(".chart-" + chart_id)
+              .node().parentNode.parentNode.style.width = "100vw";
+            d3
+              .select(".chart-" + chart_id)
+              .node().parentNode.parentNode.style.height = "100vh";
+
+            d3.select(".chart-" + chart_id).node().parentNode.style.width =
+              "100vw";
+            d3.select(".chart-" + chart_id).node().parentNode.style.height =
+              "100vh";
+            d3.select(".chart-" + chart_id).node().style.width =
+              window.innerWidth - 2 * padding + "px";
+
+            d3.select(".chart-" + chart_id).node().style.height =
+              window.innerHeight - 2 * padding + "px";
+          }
+
+          d3.select(".chart-" + chart_id)
+            .select(".expand-container")
+            .style("display", "none");
+          d3.select(".chart-" + chart_id)
+            .select(".compress-container")
+            .style("display", "block");
+          remove_graphs();
+          render_graphs();
+        }
+
+        function contract_chart() {
+          hideGeneralTooltip();
+          expandStatus = false;
+          for (let i = 0; i < numGraphs; i++) {
+            //if (i <= 1 || i >= 6) {
+            d3.select(".chart-" + i).node().parentNode.style.display = "block";
+            d3.select(".chart-" + i).node().parentNode.style.width =
+              chartDims[i].width;
+            d3.select(".chart-" + i).node().parentNode.style.height =
+              chartDims[i].height;
+            /*} else {
+              d3.select(".chart-" + i).node().parentNode.style.display =
+                "inline-block";
+              d3
+                .select(".chart-" + i)
+                .node().parentNode.parentNode.style.display = "block";
+              d3.select(".chart-" + i).node().parentNode.style.width =
+                chartDims[i].width;
+              d3.select(".chart-" + i).node().parentNode.style.height =
+                chartDims[i].height;
+            }*/
+
+            d3.select(".chart-" + i).node().style.display = "block";
+          }
+          remove_graphs();
+          render_graphs();
+        }
+
+        function export_data(data) {
+          var string = d3.csvFormatRows(
+            [["date", "value"]].concat(
+              data.map(function (d, i) {
+                return [
+                  d.date.getDate() +
+                    "-" +
+                    (d.date.getMonth() + 1) +
+                    "-" +
+                    d.date.getFullYear(), // Assuming d.year is a Date object.
+                  d.value,
+                ];
+              })
+            )
+          );
+          let csvContent =
+            "data:text/csv;charset=utf-8," + encodeURIComponent(string);
+          window.open(csvContent);
+        }
+      }
+
+      function roundDate(date) {
+        if (date.getHours() > 11) {
+          date.setDate(date.getDate() + 1);
+          date.setHours(0, 0, 0, 0);
+        } else {
+          date.setHours(0, 0, 0, 0);
+        }
+
+        return date;
+      }
+
+      function showGeneralTooltip(content) {
+        d3.select(".general-tooltip").style("display", "block");
+        d3.select(".general-tooltip-content").html(content);
+
+        var x =
+          d3.event.x -
+          d3.select(".general-tooltip-content").node().clientWidth -
+          30;
+        if (x < 0) {
+          x = d3.event.x + 20;
+        }
+        var y = d3.event.y;
+        d3.select(".general-tooltip")
+          .style("top", y + "px")
+          .style("left", x + "px");
+      }
+
+      function hideGeneralTooltip() {
+        d3.select(".general-tooltip").style("display", "none");
+      }
+    </script>
+  </body>
+</html>
