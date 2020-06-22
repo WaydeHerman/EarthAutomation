@@ -463,16 +463,16 @@
 
       function myCode(data) {
         const minDate = d3.min(data.waste, function (d) {
-          return new Date(formatDate(d.date));
+          return new Date(formatDate(d.date).split("-")[2], formatDate(d.date).split("-")[0], formatDate(d.date).split("-")[1])
         });
 
         const maxDate = d3.max(data.waste, function (d) {
-          return new Date(formatDate(d.date));
+          return new Date(formatDate(d.date).split("-")[2], formatDate(d.date).split("-")[0], formatDate(d.date).split("-")[1])
         });
 
         var currentMinDate = minDate;
         var currentMaxDate = maxDate;
-
+        
         render_graphs();
 
         window.addEventListener("resize", function () {
@@ -527,45 +527,46 @@
             var objAirspace = { date: v, value: null };
             var objTemp = { date: v, maxValue: null, minValue: null };
             data.waste.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               carbonAndWaste.push(w.value);
               if (date.getUTCDate() == v.getUTCDate()) {
                 objWaste.value = w.value;
               }
             });
             data.carbon.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               carbonAndWaste.push(w.value);
               if (date.getUTCDate() == v.getUTCDate()) {
                 objCarbon.value = w.value;
               }
             });
             data.weight.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               if (date.getUTCDate() == v.getUTCDate()) {
                 objWeight.value = w.value;
               }
             });
             data.compost.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               if (date.getUTCDate() == v.getUTCDate()) {
                 objCompost.value = w.value;
               }
             });
             data.co2.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               if (date.getUTCDate() == v.getUTCDate()) {
                 objCo2.value = w.value;
               }
             });
             data.airspace.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               if (date.getUTCDate() == v.getUTCDate()) {
                 objAirspace.value = w.value;
               }
             });
             data.temp.forEach(function (w) {
-              let date = new Date(formatDate(w.date));
+              let date = new Date(formatDate(w.date).split("-")[2], formatDate(w.date).split("-")[0], formatDate(w.date).split("-")[1])
               if (date.getUTCDate() == v.getUTCDate()) {
                 objTemp.maxValue = w.max;
                 objTemp.minValue = w.min;
@@ -698,6 +699,7 @@
           line1_hide = d3
             .line()
             .x(function (d, i) {
+              
               return xScale(new Date(d.date));
             })
             .y(function (d) {
